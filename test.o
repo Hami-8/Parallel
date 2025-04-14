@@ -1,4 +1,8 @@
-average recall: 0.99995
-average latency (us): 5811.98
+Subspace 0 k-means finished.
+Subspace 1 k-means finished.
+Subspace 2 k-means finished.
+Subspace 3 k-means finished.
+average recall: 0.112901
+average latency (us): 1134.7
 
 Authorized users only. All activities may be monitored and reported.

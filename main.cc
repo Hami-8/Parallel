@@ -12,6 +12,8 @@
 #include "hnswlib/hnswlib/hnswlib.h"
 #include "flat_scan.h"
 #include "InnerProductSIMDNeon.h"
+#include "pq_index.h"
+#include "pq_search.h"
 // 可以自行添加需要的头文件
 
 using namespace hnswlib;
@@ -86,7 +88,15 @@ int main(int argc, char *argv[])
     // 下面是一个构建hnsw索引的示例
     // build_index(base, base_number, vecdim);
 
-    
+    std::vector<std::vector<uint8_t>> pq_codes;
+    std::vector<Codebook> codebooks;
+    int subspace_num = 4;            // 例如划分为 4 个子空间
+    int clusters_per_subspace = 256; // 每个子空间 256 个聚类中心
+
+    build_PQ_index(base, base_number, vecdim,
+                   subspace_num, clusters_per_subspace,
+                   pq_codes, codebooks);
+
     // 查询测试代码
     for(int i = 0; i < test_number; ++i) {
         const unsigned long Converter = 1000 * 1000;
@@ -95,7 +105,9 @@ int main(int argc, char *argv[])
 
         // 该文件已有代码中你只能修改该函数的调用方式
         // 可以任意修改函数名，函数参数或者改为调用成员函数，但是不能修改函数返回值。
-        auto res = flat_search_InnerProductSIMD(base, test_query + i*vecdim, base_number, vecdim, k);
+        // auto res = flat_search_InnerProductSIMD(base, test_query + i*vecdim, base_number, vecdim, k);
+        auto res = pq_search(test_query + i * vecdim, pq_codes, codebooks, base_number, vecdim, k);
+
 
         struct timeval newVal;
         ret = gettimeofday(&newVal, NULL);
