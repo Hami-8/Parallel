@@ -24,12 +24,38 @@ float InnerProductSIMDNeon(float* base, float* query, int vecdim) {
 }
 
 
+
+float InnerProductSIMDNeon8(const float* a, const float* b, int dim) {
+    float32x4_t sum_low = vmovq_n_f32(0.0f); // 下半部分的累加器
+    float32x4_t sum_high = vmovq_n_f32(0.0f); // 上半部分的累加器
+
+    for (int i = 0; i < dim; i += 8) {
+        float32x4_t va_low = vld1q_f32(a + i);       // 加载前 4 个 float
+        float32x4_t vb_low = vld1q_f32(b + i);
+        float32x4_t va_high = vld1q_f32(a + i + 4);   // 加载后 4 个 float
+        float32x4_t vb_high = vld1q_f32(b + i + 4);
+
+        sum_low = vmlaq_f32(sum_low, va_low, vb_low);    // 累加前 4 个
+        sum_high = vmlaq_f32(sum_high, va_high, vb_high); // 累加后 4 个
+    }
+
+    // 汇总两个累加器的结果
+    float32x4_t sum_all = vaddq_f32(sum_low, sum_high);
+    float temp[4];
+    vst1q_f32(temp, sum_all);
+
+    float total = temp[0] + temp[1] + temp[2] + temp[3];
+    return 1.0f - total;  // 内积距离
+}
+
+
+
 std::priority_queue<std::pair<float, uint32_t>> flat_search_InnerProductSIMD(float* base, float* query, size_t base_number, size_t vecdim, size_t k) {
     std::priority_queue<std::pair<float, uint32_t>> q;
 
     for (int i = 0; i < base_number; ++i) {
         // 使用 SIMD 内积计算
-        float dis = InnerProductSIMDNeon(base + i * vecdim, query, vecdim);
+        float dis = InnerProductSIMDNeon8(base + i * vecdim, query, vecdim);
 
         // 计算 1 - 内积距离
         // dis = 1 - dis;
