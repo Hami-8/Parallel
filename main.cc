@@ -93,9 +93,24 @@ int main(int argc, char *argv[])
     int subspace_num = 4;            // 例如划分为 4 个子空间
     int clusters_per_subspace = 256; // 每个子空间 256 个聚类中心
 
+    // // 对数据库向量进行归一化
+    // for (size_t i = 0; i < base_number; i++)
+    // {
+    //     normalize_vector(base + i * vecdim, vecdim);
+    // }
+
+    // // 对查询向量进行归一化
+    // for (size_t i = 0; i < test_number; i++)
+    // {
+    //     normalize_vector(test_query + i * vecdim, vecdim);
+    // }
+
     build_PQ_index(base, base_number, vecdim,
                    subspace_num, clusters_per_subspace,
                    pq_codes, codebooks);
+
+    std::string index_path = "files/pq.index";
+    build_pq_index(base, base_number, vecdim, index_path);
 
     // 查询测试代码
     for(int i = 0; i < test_number; ++i) {
@@ -105,8 +120,8 @@ int main(int argc, char *argv[])
 
         // 该文件已有代码中你只能修改该函数的调用方式
         // 可以任意修改函数名，函数参数或者改为调用成员函数，但是不能修改函数返回值。
-        // auto res = flat_search_InnerProductSIMD(base, test_query + i*vecdim, base_number, vecdim, k);
-        auto res = pq_search(test_query + i * vecdim, pq_codes, codebooks, base_number, vecdim, k);
+        auto res = flat_search_InnerProductSIMD(base, test_query + i*vecdim, base_number, vecdim, k);
+        // auto res = pq_search(test_query + i * vecdim, pq_codes, codebooks, base_number, vecdim, k);
 
 
         struct timeval newVal;

@@ -2,6 +2,25 @@
 #include <cstdint>
 #include <iostream>
 #include "kmeans.h"
+#include "faiss/impl/ProductQuantizer.h"
+#include <faiss/IndexPQ.h>
+
+#include <cmath>
+
+// 对一个向量进行归一化，vec 为指向向量的指针，dim 为维度
+void normalize_vector(float* vec, int dim) {
+    float norm = 0.0f;
+    for (int i = 0; i < dim; i++) {
+        norm += vec[i] * vec[i];
+    }
+    norm = std::sqrt(norm);
+    // 防止除零
+    if (norm > 1e-6) {
+        for (int i = 0; i < dim; i++) {
+            vec[i] /= norm;
+        }
+    }
+}
 
 // 构建 PQ 索引
 // 参数说明：
@@ -52,4 +71,46 @@ void build_PQ_index(float* base, size_t base_number, size_t vecdim,
             codes[i][s] = static_cast<uint8_t>(assignments[s][i]);
         }
     }
+}
+
+
+// 离线 PQ 索引构建函数
+// 参数说明：
+//   base: 数据库向量数组，大小为 base_number * dim
+//   base_number: 数据库向量个数
+//   dim: 向量维度（本实验中为 96）
+//   save_path: 保存索引（包含 PQ 模型和编码数据）的文件路径
+void build_pq_index(float* base, size_t base_number, size_t dim, const std::string &save_path) {
+    // 设置 PQ 参数：将向量划分为 4 个子空间，每个子空间用 8 位编码
+    int m = 4;         // 子量化器个数
+    int nbits = 8;     // 每个子空间每个编码的位数
+    std::cout << "Initializing ProductQuantizer: dim=" << dim << ", m=" << m << ", nbits=" << nbits << std::endl;
+
+    // 构造 ProductQuantizer 对象（FAISS 内部会自动划分子空间）
+    faiss::ProductQuantizer pq(dim, m, nbits);
+
+    // 训练 PQ 模型，训练数据为数据库向量
+    std::cout << "Training PQ on " << base_number << " vectors ..." << std::endl;
+    pq.train(base_number, base);
+    std::cout << "PQ training complete." << std::endl;
+
+    // 分配存储 PQ 编码的数组，每个向量产生 m 个 8 位编码，共 base_number * m 字节
+    std::vector<uint8_t> codes(base_number * m);
+    
+    // 对数据库向量进行编码，生成 PQ 编码
+    pq.compute_codes(base, base_number, codes.data());
+    std::cout << "PQ codes computed for all vectors." << std::endl;
+
+    // 将 PQ 模型和编码数据保存到磁盘
+    std::ofstream ofs(save_path, std::ios::binary);
+    if (!ofs.is_open()) {
+        std::cerr << "Error: cannot open file " << save_path << " for writing." << std::endl;
+        return;
+    }
+    // 保存 PQ 模型（包括各子空间的聚类中心）
+    pq.write(ofs);
+    // 保存 PQ 编码数据：连续 base_number * m 字节
+    ofs.write(reinterpret_cast<const char*>(codes.data()), codes.size() * sizeof(uint8_t));
+    ofs.close();
+    std::cout << "PQ index saved to " << save_path << std::endl;
 }
